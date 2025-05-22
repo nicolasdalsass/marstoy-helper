@@ -1,12 +1,16 @@
 {
   "manifest_version": 2,
   "name": "Marstoy BrickLink Set Finder",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Enhances Marstoy product codes with BrickLink set names",
+  "icons": {
+    "192": "favicon-192x192.png"
+  },
   "permissions": [
     "*://marstoy.net/*",
     "*://www.marstoy.net/*",
-    "*://www.bricklink.com/*"
+    "*://www.bricklink.com/*",
+    "*://img.bricklink.com/*"
   ],
   "content_scripts": [
     {
@@ -14,8 +18,13 @@
         "*://marstoy.net/*",
         "*://www.marstoy.net/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_end"
     }
+  ],
+  "web_accessible_resources": [
+    "*://img.bricklink.com/*"
   ]
 } 

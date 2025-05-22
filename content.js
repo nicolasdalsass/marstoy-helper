@@ -1,8 +1,5 @@
 console.log("Marstoy extension loaded");
 
-// Keep track of processed elements
-const processedElements = new Set();
-
 // Utility functions
 function reverseString(str) {
     return str.split('').reverse().join('');
@@ -21,33 +18,13 @@ function createBrickLinkLink(setNumber, setName) {
     return link;
 }
 
-// Check if an element or its parent already has enrichment
-function hasExistingEnrichment(element) {
-    // Check the element itself
-    if (!element) return false;
-
-    // Check for existing BrickLink links
-    if (element.querySelector('a[href*="bricklink.com"]')) {
-        console.log('Found existing BrickLink link');
-        return true;
+// Check if any ancestor has the bricklink-enriched class
+function hasBrickLinkEnrichedAncestor(node) {
+    let current = node.parentElement;
+    while (current) {
+        if (current.classList && current.classList.contains('bricklink-enriched')) return true;
+        current = current.parentElement;
     }
-
-    // Check for our known enrichment patterns
-    const enrichmentPatterns = [
-        'bricklink.com',
-        /\([^)]+\)(?:\s*\([^)]+\))?$/,  // One or two parentheses blocks at end
-        '(fail to enrich)'
-    ];
-
-    // Check element's text content
-    const content = element.textContent || '';
-    for (const pattern of enrichmentPatterns) {
-        if (typeof pattern === 'string' ? content.includes(pattern) : pattern.test(content)) {
-            console.log('Found existing enrichment pattern:', pattern);
-            return true;
-        }
-    }
-
     return false;
 }
 
@@ -80,59 +57,76 @@ async function fetchSetName(setNumber) {
     }
 }
 
-// Core enrichment function
+// --- Main Enrichment Function ---
 async function enrichTextNode(textNode) {
-    console.log('Attempting to enrich text node:', textNode.textContent.trim());
-
-    // Skip if already processed
-    if (processedElements.has(textNode)) {
-        console.log('Skipping already processed node');
-        return;
-    }
-
-    // Skip if parent is already processed or has enrichment
-    if (textNode.parentElement) {
-        if (processedElements.has(textNode.parentElement)) {
-            console.log('Skipping due to processed parent');
-            return;
-        }
-        if (hasExistingEnrichment(textNode.parentElement)) {
-            console.log('Skipping due to existing enrichment in parent');
-            return;
-        }
-    }
+    if (hasBrickLinkEnrichedAncestor(textNode)) return;
 
     const text = textNode.textContent.trim();
-    if (!text) {
-        console.log('Skipping empty text node');
-        return;
-    }
+    if (!text) return;
 
     const regex = /[MN](\d{4,5})/g;
     let match;
 
     while ((match = regex.exec(text)) !== null) {
-        console.log('Found pattern match:', match[0]);
         const digits = match[1];
         const reversedDigits = reverseString(digits);
-        
+
         const setName = await fetchSetName(reversedDigits);
-        console.log('Fetched set name:', setName);
+        if (!setName) continue;
         
-        if (setName) {
-            // Create enriched content
-            const wrapper = document.createElement('span');
-            wrapper.className = 'bricklink-enriched';
-            wrapper.appendChild(document.createTextNode(text));
-            wrapper.appendChild(createBrickLinkLink(reversedDigits, setName));
-            
-            // Replace and mark as processed
-            textNode.replaceWith(wrapper);
-            processedElements.add(wrapper);
-            processedElements.add(textNode);
-            console.log('Successfully enriched text node');
-            break;
+        const brickLinkImageUrl = `https://img.bricklink.com/ItemImage/SN/0/${reversedDigits}-1.png`;
+
+        // Image DOM update logic
+        let container = textNode.parentElement;
+        while (container && !container.classList?.contains('club-product-snippet') && !container.classList?.contains('product-snippet')) {
+            container = container.parentElement;
         }
+        if (container) {
+            const imageContainer = container.querySelector('.product-snippet-image-container, .product-snippet__img-wrapper');
+            if (imageContainer) {
+                const mainImg = imageContainer.querySelector('img');
+                if (mainImg) {
+                    // Set initial style to ensure visibility
+                    mainImg.style.opacity = '1';
+                    mainImg.style.visibility = 'visible';
+                    mainImg.style.display = 'block';
+                    
+                    // Remove all lazy loading related attributes and classes
+                    mainImg.removeAttribute('srcset');
+                    mainImg.removeAttribute('data-srcset');
+                    mainImg.removeAttribute('data-sizes');
+                    mainImg.removeAttribute('sizes');
+                    mainImg.removeAttribute('data-src');
+                    mainImg.classList.remove('lazyautosizes', 'ls-is-cached', 'lazyloaded');
+                    
+                    // Set the image directly from BrickLink
+                    mainImg.src = brickLinkImageUrl;
+                    mainImg.alt = setName;
+                    
+                    // Handle image loading
+                    mainImg.onload = function () {
+                        console.log(`[BrickLink] Image loaded for set ${reversedDigits}`);
+                        mainImg.style.opacity = '1';
+                        mainImg.style.visibility = 'visible';
+                        mainImg.style.display = 'block';
+                    };
+                    mainImg.onerror = function () {
+                        console.warn(`[BrickLink] Image failed to load for set ${reversedDigits}`);
+                        mainImg.style.display = "none";
+                    };
+                }
+            }
+        }
+
+        // Title + link enrichment logic
+        const wrapper = document.createElement('span');
+        wrapper.className = 'bricklink-enriched';
+        wrapper.appendChild(document.createTextNode(text));
+        wrapper.appendChild(createBrickLinkLink(reversedDigits, setName));
+
+        textNode.replaceWith(wrapper);
+
+        break; // Only one match per node
     }
 }
 
@@ -214,4 +208,4 @@ if (document.readyState === 'loading') {
 }
 
 // Also try after a short delay to catch any dynamic content
-setTimeout(init, 1000); 
+setTimeout(init, 1000);
