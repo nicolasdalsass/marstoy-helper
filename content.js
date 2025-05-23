@@ -5,6 +5,12 @@ function reverseString(str) {
     return str.split('').reverse().join('');
 }
 
+function decodeHtmlEntities(text) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+}
+
 function createBrickLinkLink(setNumber, setName) {
     const link = document.createElement('a');
     link.href = `https://www.bricklink.com/v2/catalog/catalogitem.page?S=${setNumber}`;
@@ -13,6 +19,10 @@ function createBrickLinkLink(setNumber, setName) {
     link.style.marginLeft = '5px';
     link.style.color = '#0066cc';
     link.style.textDecoration = 'none';
+    link.style.padding = '4px 8px';
+    link.style.minHeight = '44px';
+    link.style.display = 'inline-block';
+    link.style.verticalAlign = 'middle';
     link.addEventListener('mouseover', () => link.style.textDecoration = 'underline');
     link.addEventListener('mouseout', () => link.style.textDecoration = 'none');
     return link;
@@ -46,7 +56,7 @@ async function fetchSetName(setNumber) {
         for (const pattern of titlePatterns) {
             const match = html.match(pattern);
             if (match && match[1]) {
-                return match[1].trim();
+                return decodeHtmlEntities(match[1].trim());
             }
         }
 
@@ -82,7 +92,7 @@ async function enrichTextNode(textNode) {
             container = container.parentElement;
         }
         if (container) {
-            const imageContainer = container.querySelector('.product-snippet-image-container, .product-snippet__img-wrapper');
+            const imageContainer = container.querySelector('.product-snippet-image-container, .product-snippet__img-wrapper, .product-image, .product-image-container');
             if (imageContainer) {
                 const mainImg = imageContainer.querySelector('img');
                 if (mainImg) {
@@ -103,6 +113,10 @@ async function enrichTextNode(textNode) {
                     mainImg.src = brickLinkImageUrl;
                     mainImg.alt = setName;
                     
+                    // Make image responsive
+                    mainImg.style.maxWidth = '100%';
+                    mainImg.style.height = 'auto';
+                    
                     // Handle image loading
                     mainImg.onload = function () {
                         console.log(`[BrickLink] Image loaded for set ${reversedDigits}`);
@@ -121,6 +135,7 @@ async function enrichTextNode(textNode) {
         // Title + link enrichment logic
         const wrapper = document.createElement('span');
         wrapper.className = 'bricklink-enriched';
+        wrapper.style.display = 'inline-block';
         wrapper.appendChild(document.createTextNode(text));
         wrapper.appendChild(createBrickLinkLink(reversedDigits, setName));
 
