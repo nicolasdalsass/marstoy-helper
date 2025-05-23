@@ -6,9 +6,11 @@ function reverseString(str) {
 }
 
 function decodeHtmlEntities(text) {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
+    const parser = new DOMParser();
+    const dom = parser.parseFromString(
+        '<!doctype html><body>' + text, 'text/html');
+    return dom.body.textContent;
+
 }
 
 function createBrickLinkLink(setNumber, setName) {
@@ -88,11 +90,11 @@ async function enrichTextNode(textNode) {
 
         // Image DOM update logic
         let container = textNode.parentElement;
-        while (container && !container.classList?.contains('club-product-snippet') && !container.classList?.contains('product-snippet')) {
+        while (container && !container.classList?.contains('club-product-snippet') && !container.classList?.contains('product-snippet') && !container.classList?.contains('p-cursor-pointer')) {
             container = container.parentElement;
         }
         if (container) {
-            const imageContainer = container.querySelector('.product-snippet-image-container, .product-snippet__img-wrapper, .product-image, .product-image-container');
+            const imageContainer = container.querySelector('.product-snippet-image-container, .product-snippet__img-wrapper, .p-relative');
             if (imageContainer) {
                 const mainImg = imageContainer.querySelector('img');
                 if (mainImg) {
