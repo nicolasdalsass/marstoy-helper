@@ -17,6 +17,8 @@
   "permissions": [
     "*://marstoy.net/*",
     "*://www.marstoy.net/*",
+    "*://marstoy.com/*",
+    "*://www.marstoy.com/*",
     "*://www.bricklink.com/*",
     "*://img.bricklink.com/*"
   ],
@@ -24,7 +26,9 @@
     {
       "matches": [
         "*://marstoy.net/*",
-        "*://www.marstoy.net/*"
+        "*://www.marstoy.net/*",
+        "*://marstoy.com/*",
+        "*://www.marstoy.com/*"
       ],
       "js": [
         "content.js"

@@ -58,7 +58,8 @@ async function fetchSetName(setNumber) {
         for (const pattern of titlePatterns) {
             const match = html.match(pattern);
             if (match && match[1]) {
-                return decodeHtmlEntities(match[1].trim());
+                const found = decodeHtmlEntities(match[1].trim());
+                return found;
             }
         }
 
@@ -82,21 +83,45 @@ async function enrichTextNode(textNode) {
     while ((match = regex.exec(text)) !== null) {
         const digits = match[1];
         const reversedDigits = reverseString(digits);
-
         const setName = await fetchSetName(reversedDigits);
         if (!setName) continue;
         
         const brickLinkImageUrl = `https://img.bricklink.com/ItemImage/SN/0/${reversedDigits}-1.png`;
 
         // Image DOM update logic
-        let container = textNode.parentElement;
-        while (container && !container.classList?.contains('club-product-snippet') && !container.classList?.contains('product-snippet') && !container.classList?.contains('p-cursor-pointer')) {
-            container = container.parentElement;
+        // Prefer robust closest() search to locate the product container across layouts
+        const closestRoot = textNode.parentElement?.closest(
+            '.advc-product-item, .advc-product-item__inner-wrap, .advc-product-item__wrapper, .advc-product-card, .product-snippet, .club-product-snippet, .p-cursor-pointer, .product-card-wrapper, .card-main, .card__inner, .card__inner--wrapper, .card__content, .card__media'
+        );
+        let container = closestRoot || textNode.parentElement;
+        if (!closestRoot) {
+            // Fallback: legacy upward traversal if closest() did not find anything
+            while (
+                container &&
+                !(
+                    container.classList?.contains('club-product-snippet') ||
+                    container.classList?.contains('product-snippet') ||
+                    container.classList?.contains('p-cursor-pointer') ||
+                    container.classList?.contains('advc-product-item__wrapper') ||
+                    container.classList?.contains('advc-product-item__inner-wrap') ||
+                    container.classList?.contains('advc-product-card') ||
+                    container.classList?.contains('product-card-wrapper') ||
+                    container.classList?.contains('card-main') ||
+                    container.classList?.contains('card__inner') ||
+                    container.classList?.contains('card__inner--wrapper') ||
+                    container.classList?.contains('card__content') ||
+                    container.classList?.contains('card__media')
+                )
+            ) {
+                container = container.parentElement;
+            }
         }
         if (container) {
-            const imageContainer = container.querySelector('.product-snippet-image-container, .product-snippet__img-wrapper, .p-relative');
+            const imageContainer = container.querySelector(
+                '.product-snippet-image-container, .product-snippet__img-wrapper, .p-relative, .advc-product-item-image, .advc-product-item__image-content, .card__media, .card__inner, .card__inner--wrapper'
+            );
             if (imageContainer) {
-                const mainImg = imageContainer.querySelector('img');
+                const mainImg = imageContainer.querySelector('img.collection-hero__image, img.advc-image, img');
                 if (mainImg) {
                     // Set initial style to ensure visibility
                     mainImg.style.opacity = '1';
@@ -121,13 +146,11 @@ async function enrichTextNode(textNode) {
                     
                     // Handle image loading
                     mainImg.onload = function () {
-                        console.log(`[BrickLink] Image loaded for set ${reversedDigits}`);
                         mainImg.style.opacity = '1';
                         mainImg.style.visibility = 'visible';
                         mainImg.style.display = 'block';
                     };
                     mainImg.onerror = function () {
-                        console.warn(`[BrickLink] Image failed to load for set ${reversedDigits}`);
                         mainImg.style.display = "none";
                     };
                 }
@@ -135,13 +158,33 @@ async function enrichTextNode(textNode) {
         }
 
         // Title + link enrichment logic
-        const wrapper = document.createElement('span');
-        wrapper.className = 'bricklink-enriched';
-        wrapper.style.display = 'inline-block';
-        wrapper.appendChild(document.createTextNode(text));
-        wrapper.appendChild(createBrickLinkLink(reversedDigits, setName));
+        // For new advc-* structure, prefer appending the link near the product title if found
+        let titleNode = null;
+        if (container) {
+            titleNode = container.querySelector('.advc-product-item-title');
+        }
 
-        textNode.replaceWith(wrapper);
+        const linkEl = createBrickLinkLink(reversedDigits, setName);
+        const insideTitle = titleNode && titleNode.contains(textNode);
+
+        if (insideTitle) {
+            // Avoid duplicates: check if a BrickLink link for this set already exists
+            const existing = titleNode.querySelector(`a[href*="bricklink.com"][href*="catalogitem.page?S=${reversedDigits}"]`);
+            if (!existing) {
+                const linkOnly = linkEl.cloneNode(true);
+                linkOnly.style.marginLeft = '8px';
+                titleNode.appendChild(linkOnly);
+                titleNode.classList.add('bricklink-enriched');
+            }
+        } else {
+            // Not inside title: replace the text node with a wrapper (single link)
+            const wrapper = document.createElement('span');
+            wrapper.className = 'bricklink-enriched';
+            wrapper.style.display = 'inline-block';
+            wrapper.appendChild(document.createTextNode(text));
+            wrapper.appendChild(linkEl);
+            textNode.replaceWith(wrapper);
+        }
 
         break; // Only one match per node
     }
@@ -149,7 +192,6 @@ async function enrichTextNode(textNode) {
 
 // Page processing
 async function processPage() {
-    console.log("Beginning to process page");
     
     const walker = document.createTreeWalker(
         document.body,
@@ -176,7 +218,7 @@ async function processPage() {
         }
     }
 
-    console.log(`Found ${nodes.length} text nodes to process`);
+    
     for (const node of nodes) {
         await enrichTextNode(node);
     }
@@ -225,4 +267,6 @@ if (document.readyState === 'loading') {
 }
 
 // Also try after a short delay to catch any dynamic content
-setTimeout(init, 1000);
+setTimeout(() => {
+    init();
+}, 1000);
