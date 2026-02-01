@@ -77,7 +77,7 @@ async function enrichTextNode(textNode) {
     const text = textNode.textContent.trim();
     if (!text) return;
 
-    const regex = /[MN](\d{4,5})/g;
+    const regex = /[MN](\d{4,6})/g;
     let match;
 
     while ((match = regex.exec(text)) !== null) {

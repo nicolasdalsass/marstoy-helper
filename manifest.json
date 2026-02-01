@@ -1,14 +1,14 @@
 {
   "manifest_version": 2,
   "name": "Marstoy BrickLink Set Finder",
-  "version": "1.3",
+  "version": "1.5",
   "description": "Enhances Marstoy product codes with BrickLink set names",
   "browser_specific_settings": {
     "gecko": {
-      "strict_min_version": "10.0"
+      "strict_min_version": "58.0"
     },
     "gecko_android": {
-      "strict_min_version": "10.0"
+      "strict_min_version": "58.0"
     }
   },
   "icons": {
